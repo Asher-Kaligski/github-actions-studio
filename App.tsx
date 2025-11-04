@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { WorkflowExplorer } from './components/WorkflowExplorer';
@@ -6,52 +5,68 @@ import { WorkflowDetailView } from './components/WorkflowDetailView';
 import { WorkflowRunsPanel } from './components/WorkflowRunsPanel';
 import { SecretsPanel } from './components/SecretsPanel';
 import { MarketplacePanel } from './components/MarketplacePanel';
-import type { View, Workflow, WorkflowRun, WorkflowDispatchInput } from './types';
-import { MOCK_WORKFLOWS } from './constants';
+import type { View, Workflow, WorkflowRun } from './types';
+import { getVscodeApi } from './src/webview/vscode';
 import { GithubIcon } from './constants';
 
+const vscode = getVscodeApi();
+
 const App: React.FC = () => {
-  const [repo, setRepo] = useState<string>('owner/repo-name');
+  const [repoInput, setRepoInput] = useState<string>('owner/repo-name');
+  const [repo, setRepo] = useState<string>('');
   const [connected, setConnected] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<View>('explorer');
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data; // The JSON data our extension sent
+      switch (message.command) {
+        case 'connected':
+          setConnected(true);
+          setRepo(message.payload.repo);
+          setWorkflows(message.payload.workflows);
+          setSelectedWorkflow(message.payload.workflows[0] || null);
+          break;
+        case 'runStarted':
+          setRuns(prevRuns => [message.payload, ...prevRuns]);
+          setActiveView('runs');
+          break;
+        case 'runFinished':
+          setRuns(prevRuns =>
+            prevRuns.map(run =>
+              run.id === message.payload.id ? message.payload : run
+            )
+          );
+          break;
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   const handleConnect = () => {
-    if (repo.trim() !== '') {
-      setConnected(true);
-      setWorkflows(MOCK_WORKFLOWS);
-      setSelectedWorkflow(MOCK_WORKFLOWS[0] || null);
+    if (repoInput.trim() !== '') {
+      vscode.postMessage({
+        command: 'connect',
+        repo: repoInput,
+      });
     }
   };
 
   const handleDispatch = useCallback((workflowId: string, inputs: Record<string, string>) => {
-    const workflow = workflows.find(w => w.id === workflowId);
-    if (!workflow) return;
-
-    const newRun: WorkflowRun = {
-      id: Date.now(),
-      workflowId: workflow.id,
-      workflowName: workflow.name,
-      status: 'in_progress',
-      inputs,
-      startedAt: new Date(),
-    };
-    setRuns(prevRuns => [newRun, ...prevRuns]);
-    setActiveView('runs');
-
-    // Simulate workflow completion
-    setTimeout(() => {
-      setRuns(prevRuns =>
-        prevRuns.map(run =>
-          run.id === newRun.id
-            ? { ...run, status: Math.random() > 0.3 ? 'success' : 'failure', finishedAt: new Date() }
-            : run
-        )
-      );
-    }, 5000 + Math.random() * 5000);
-  }, [workflows]);
+    vscode.postMessage({
+      command: 'dispatch',
+      payload: { workflowId, inputs },
+    });
+  }, []);
 
   const renderView = () => {
     switch (activeView) {
@@ -82,8 +97,8 @@ const App: React.FC = () => {
           <div className="mt-6">
             <input
               type="text"
-              value={repo}
-              onChange={e => setRepo(e.target.value)}
+              value={repoInput}
+              onChange={e => setRepoInput(e.target.value)}
               placeholder="e.g., octocat/Hello-World"
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

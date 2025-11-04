@@ -1,22 +1,30 @@
 {
   "name": "github-actions-companion",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+  "displayName": "GitHub Actions Companion",
+  "description": "A VS Code extension for managing GitHub Actions.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
   },
-  "dependencies": {
-    "@google/genai": "^1.28.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+  "activationEvents": [
+    "onCommand:githubActionsCompanion.start"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "githubActionsCompanion.start",
+        "title": "Start GitHub Actions Companion"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
   }
 }

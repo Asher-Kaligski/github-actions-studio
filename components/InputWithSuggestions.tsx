@@ -1,6 +1,5 @@
-
-import React, { useState, useCallback } from 'react';
-import { getSuggestionsForInput } from '../services/geminiService';
+import React, { useState, useCallback, useEffect } from 'react';
+import { requestSuggestionsForInput } from '../services/geminiService';
 
 interface InputWithSuggestionsProps extends React.InputHTMLAttributes<HTMLInputElement> {
   name: string;
@@ -12,19 +11,30 @@ export const InputWithSuggestions: React.FC<InputWithSuggestionsProps> = ({ name
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Listen for messages from the extension host that contain suggestions
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.command === 'suggestionsLoaded' && message.payload.description === description) {
+        setIsLoading(false);
+        if (message.payload.suggestions) {
+            setSuggestions(message.payload.suggestions);
+        } else {
+            setError('Failed to load suggestions.');
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [description]);
 
-  const fetchSuggestions = useCallback(async () => {
+
+  const fetchSuggestions = useCallback(() => {
     if (suggestions.length > 0 || isLoading) return;
     setIsLoading(true);
     setError(null);
-    try {
-      const result = await getSuggestionsForInput(description);
-      setSuggestions(result);
-    } catch (err) {
-      setError('Failed to load suggestions.');
-    } finally {
-      setIsLoading(false);
-    }
+    requestSuggestionsForInput(description);
   }, [description, isLoading, suggestions.length]);
 
   const handleSuggestionClick = (suggestion: string) => {
