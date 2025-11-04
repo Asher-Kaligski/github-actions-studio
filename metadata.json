@@ -1,0 +1,5 @@
+{
+  "name": "GitHub Actions Companion",
+  "description": "A VS Code-style extension simulator for managing GitHub Actions. This tool allows you to connect to a repository, explore workflows, trigger runs with AI-powered input suggestions, and monitor their status in real-time.",
+  "requestFramePermissions": []
+}
